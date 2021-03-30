@@ -84,7 +84,7 @@ router.get('/:cityName', async (ctx, next) => {
         }
     } else {
         console.log('Data from cache');
-        ctx.body = ResultHelper.resultSuccess(dataFromDb);
+        ctx.body = ResultHelper.resultSuccess(JSON.parse(dataFromDb));
     }
     next();
 });
