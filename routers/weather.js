@@ -63,7 +63,7 @@ router.get('/', (ctx, next) =>{
 });
 
 // TODO: Handle spaces in name. e.g new york does not work with curl
-router.get('/:cityName', async (ctx, next) => {
+router.get('/city/:cityName', async (ctx, next) => {
     const { cityName } = ctx.params;
     // Get data from redis cache
     const dataFromDb = await getDataDb(cityName);
@@ -78,6 +78,35 @@ router.get('/:cityName', async (ctx, next) => {
                 ctx.body = ResultHelper.resultSuccess(owmResponse.data);
                 const owmResponseDataJson = JSON.stringify(owmResponse.data);
                 await setDataDb(cityName, owmResponseDataJson, 'EX', 60 * 60 * 1); // 60 seconds * 60 * n = n hour
+            }
+        } catch (err) {
+            ctx.body = ResultHelper.resultError(err.message);
+        }
+    } else {
+        console.log('Data from cache');
+        ctx.body = ResultHelper.resultSuccess(JSON.parse(dataFromDb));
+    }
+    next();
+});
+
+router.get('/onecall', async (ctx, next) => {
+    const { lat, lon } = ctx.query;
+    console.log(lat, lon);
+    const redisKey = lat + lon;
+    // Get data from redis cache
+    const dataFromDb = await getDataDb(redisKey);
+    if (dataFromDb === null) { // redis cache is clear
+        console.log('Data not available on cache');
+        let owmResponse;
+        // try to get data from
+        try {
+            console.log(owmApiKey);
+            owmResponse =
+                await axios.get(`https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&appid=${owmApiKey}`);
+            if (owmResponse.data) {
+                ctx.body = ResultHelper.resultSuccess(owmResponse.data);
+                const owmResponseDataJson = JSON.stringify(owmResponse.data);
+                await setDataDb(redisKey, owmResponseDataJson, 'EX', 60 * 60 * 1); // 60 seconds * 60 * n = n hour
             }
         } catch (err) {
             ctx.body = ResultHelper.resultError(err.message);
